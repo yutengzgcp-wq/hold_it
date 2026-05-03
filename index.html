@@ -2,7 +2,17 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<!-- PWA / iOS 主屏幕 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hold It">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#08080f">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+
 <title>Hold It ⚡</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,18 +34,31 @@
   --r: 16px;
 }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  /* 防止 iOS 橡皮筋回弹让背景露出来 */
+  overscroll-behavior: none;
+  background: var(--bg);
+}
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
+  min-height: -webkit-fill-available; /* iOS Safari 100vh 修复 */
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.75rem 1rem 5rem;
+  /* 安全区域适配：刘海 / 动态岛 / Home 条 */
+  padding-top:    max(1.75rem, env(safe-area-inset-top));
+  padding-right:  max(1rem,    env(safe-area-inset-right));
+  padding-bottom: max(5rem,    calc(env(safe-area-inset-bottom) + 2rem));
+  padding-left:   max(1rem,    env(safe-area-inset-left));
   overflow-x: hidden;
+  overscroll-behavior: none;
+  /* 去掉 iOS 点击蓝色高亮 */
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ── Ambient bg ───────────────────── */
@@ -410,6 +433,54 @@ body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
 /* ── Scrollbar ────────────────────── */
 ::-webkit-scrollbar { width:3px; }
 ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+/* ── iOS / 触控优化 ───────────────── */
+
+/* 防止按钮双击缩放，同时保留原生滚动顺滑度 */
+.btn, .btn-main, .tip-btn, .reset-btn, .set-img-btn,
+.m-persist, .m-yield, .tip-next {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 主要内容区不可选中 */
+.hdr, .reveal-outer, .dots-row, .timer-box,
+.stats-row, .tip-box, .ach-box, .hist-box {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Toast 随 Home 条上移 */
+.toast {
+  bottom: max(2rem, calc(env(safe-area-inset-bottom) + 1rem)) !important;
+}
+
+/* 防止 iOS 在 input 聚焦时放大页面（字号需 ≥ 16px） */
+.img-input {
+  font-size: 16px !important;
+}
+
+/* 弹窗在安全区域内 */
+.modal {
+  margin-bottom: env(safe-area-inset-bottom);
+}
+
+/* 增大可点击区域，适合手指操作 */
+.set-img-btn {
+  padding: 0.5rem 0.9rem !important;
+  min-height: 36px;
+}
+.tip-next, .reset-btn {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 让 history-list 在 iOS 上有惯性滚动 */
+.hist-list {
+  -webkit-overflow-scrolling: touch;
+}
 </style>
 </head>
 <body>
@@ -1157,6 +1228,14 @@ function init() {
 }
 
 init();
+
+/* ── Service Worker 注册（PWA 离线支持）── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(err => console.warn('SW 注册失败:', err));
+  });
+}
 </script>
 </body>
 </html>
