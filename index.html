@@ -2,16 +2,20 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- user-scalable=no 防误触缩放，viewport-fit=cover 兼容刘海/动态岛 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
-<!-- PWA / iOS 主屏幕 -->
+<!-- ===== iOS 主屏幕 / PWA ===== -->
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hold It">
-<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#08080f">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon.svg">
+
+<!-- 内联 SVG 图标（不依赖外部文件，iOS 可靠读取） -->
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%2316063a'/><path d='M298 90 L162 272 H244 L210 438 L354 238 H268 Z' fill='%23a78bfa'/><rect x='100' y='340' width='312' height='32' rx='5' fill='%23ffffff' opacity='0.12'/><rect x='100' y='298' width='312' height='32' rx='5' fill='%23ffffff' opacity='0.08'/></svg>">
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%2316063a'/><path d='M298 90 L162 272 H244 L210 438 L354 238 H268 Z' fill='%23a78bfa'/></svg>">
 
 <title>Hold It ⚡</title>
 <style>
@@ -27,18 +31,21 @@
   --purple: #7c3aed;
   --purple-l: #a78bfa;
   --teal: #06d6a0;
+  --teal-dk: #059669;
   --red: #ef4444;
   --gold: #fbbf24;
   --paper: #f5f0e8;
   --paper2: #ede8d8;
   --r: 16px;
+  --item-h: 44px; /* drum picker item height */
 }
 
 html {
   scroll-behavior: smooth;
-  /* 防止 iOS 橡皮筋回弹让背景露出来 */
   overscroll-behavior: none;
   background: var(--bg);
+  /* 修复 iOS Safari 100vh 问题 */
+  height: -webkit-fill-available;
 }
 
 body {
@@ -46,106 +53,103 @@ body {
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
-  min-height: -webkit-fill-available; /* iOS Safari 100vh 修复 */
+  min-height: -webkit-fill-available;
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* 安全区域适配：刘海 / 动态岛 / Home 条 */
-  padding-top:    max(1.75rem, env(safe-area-inset-top));
+  /* 安全区域适配：刘海/动态岛/Home 条 */
+  padding-top:    max(1.5rem,  env(safe-area-inset-top));
   padding-right:  max(1rem,    env(safe-area-inset-right));
   padding-bottom: max(5rem,    calc(env(safe-area-inset-bottom) + 2rem));
   padding-left:   max(1rem,    env(safe-area-inset-left));
   overflow-x: hidden;
   overscroll-behavior: none;
-  /* 去掉 iOS 点击蓝色高亮 */
   -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
 
-/* ── Ambient bg ───────────────────── */
+/* 环境光晕 */
 body::before, body::after {
   content: '';
   position: fixed; border-radius: 50%;
   filter: blur(120px); pointer-events: none; z-index: 0;
 }
 body::before { width: 500px; height: 500px; top: -200px; left: -150px;
-  background: rgba(124,58,237,0.12); }
+  background: rgba(124,58,237,0.1); }
 body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
-  background: rgba(6,214,160,0.1); }
+  background: rgba(6,214,160,0.08); }
 
 .wrap {
   position: relative; z-index: 1;
-  width: 100%; max-width: 400px;
-  display: flex; flex-direction: column; gap: 1rem;
+  width: 100%; max-width: 420px;
+  display: flex; flex-direction: column; gap: 0.85rem;
 }
 
-/* ── Header ───────────────────────── */
-.hdr { text-align: center; padding-bottom: 0.25rem; }
+/* ─── Header ─────────────────────── */
+.hdr { text-align: center; padding-bottom: 0.1rem; }
 .hdr h1 {
-  font-size: 1.6rem; font-weight: 900; letter-spacing: 0.08em;
+  font-size: 1.5rem; font-weight: 900; letter-spacing: 0.07em;
   background: linear-gradient(135deg, var(--purple-l), var(--teal));
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 .hdr p { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; letter-spacing: 0.07em; }
 
-/* ── REVEAL FRAME ─────────────────── */
-.reveal-outer {
-  position: relative;
-  border-radius: 20px;
-  overflow: hidden;
+/* ─── Cards ──────────────────────── */
+.card {
+  background: var(--surface);
   border: 1px solid var(--border);
-  box-shadow: 0 0 0 1px rgba(124,58,237,0.15), 0 20px 60px rgba(0,0,0,0.6);
-  background: #000;
-  aspect-ratio: 3/4;
-  max-height: 420px;
+  border-radius: var(--r);
+  padding: 1.1rem;
 }
 
-/* BG image */
+/* ─── REVEAL FRAME ───────────────── */
+/* 关键修复：去掉 aspect-ratio + max-height 的矛盾，改用 clamp 高度 + 100% 宽度 */
+.reveal-outer {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 0 0 1px rgba(124,58,237,0.15), 0 16px 50px rgba(0,0,0,0.6);
+  background: #000;
+  width: 100%;                          /* 始终撑满容器宽度 */
+  height: clamp(260px, 46vh, 400px);    /* 响应式高度，不会因宽高比缩小 */
+}
+
+/* BG 图 */
 .reveal-bg {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 0.75rem;
-  transition: opacity 0.5s;
-  background: linear-gradient(135deg, #1a0533 0%, #0a1a2e 40%, #001a14 100%);
+  background: linear-gradient(135deg, #1a0533 0%, #0f0f1c 45%, #001a14 100%);
   overflow: hidden;
 }
-.reveal-bg::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: url('') center/cover no-repeat;
-  filter: brightness(0.9);
-  transition: opacity 0.5s;
-  opacity: 0;
-}
-.reveal-bg.has-image::before { opacity: 1; }
 .reveal-bg-stars { position: absolute; inset: 0; overflow: hidden; }
-
-.reward-msg {
-  position: relative; z-index: 1;
-  text-align: center; padding: 1.5rem;
-}
-.reward-msg .emo { font-size: 4rem; display: block; margin-bottom: 0.75rem;
+.reward-msg { position: relative; z-index: 1; text-align: center; padding: 1.25rem; }
+.reward-msg .emo {
+  font-size: 3.5rem; display: block; margin-bottom: 0.6rem;
   filter: drop-shadow(0 0 20px rgba(251,191,36,0.8));
-  animation: glow-pulse 1.5s ease-in-out infinite; }
+  animation: glow-pulse 1.5s ease-in-out infinite;
+}
 @keyframes glow-pulse {
-  0%,100% { filter: drop-shadow(0 0 20px rgba(251,191,36,0.6)); }
-  50% { filter: drop-shadow(0 0 35px rgba(251,191,36,1)); }
+  0%,100% { filter: drop-shadow(0 0 16px rgba(251,191,36,0.55)); }
+  50% { filter: drop-shadow(0 0 32px rgba(251,191,36,1)); }
 }
-.reward-msg h2 { font-size: 1.3rem; font-weight: 800; color: var(--gold);
-  text-shadow: 0 0 20px rgba(251,191,36,0.6); }
-.reward-msg p { font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-top: 0.4rem; }
+.reward-msg h2 { font-size: 1.2rem; font-weight: 800; color: var(--gold);
+  text-shadow: 0 0 18px rgba(251,191,36,0.5); }
+.reward-msg p  { font-size: 0.75rem; color: rgba(255,255,255,0.55); margin-top: 0.35rem; }
 
-/* set-image button inside bg */
+/* 换底图按钮 */
 .set-img-btn {
-  position: absolute; bottom: 12px; right: 12px; z-index: 5;
-  background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.15);
-  color: rgba(255,255,255,0.7); font-size: 0.68rem; padding: 0.3rem 0.7rem;
+  position: absolute; bottom: 10px; right: 10px; z-index: 5;
+  background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.65); font-size: 0.65rem; padding: 0.45rem 0.75rem;
   border-radius: 8px; cursor: pointer; backdrop-filter: blur(8px);
-  transition: all 0.2s; letter-spacing: 0.05em;
+  transition: all 0.2s; touch-action: manipulation;
+  min-height: 36px; display: flex; align-items: center;
 }
-.set-img-btn:hover { background: rgba(124,58,237,0.5); color: #fff; border-color: rgba(124,58,237,0.5); }
+.set-img-btn:active { background: rgba(124,58,237,0.5); color: #fff; }
 
-/* ── PAPER STRIPS ─────────────────── */
+/* ─── PAPER STRIPS ───────────────── */
 .strips-wrap {
   position: absolute; inset: 0; z-index: 2;
   display: flex; flex-direction: column;
@@ -153,32 +157,25 @@ body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
 }
 
 .strip {
-  flex: 1;
+  flex: 1;   /* 均分高度，不依赖固定 px */
   position: relative;
   background: var(--paper);
   display: flex; align-items: center; justify-content: center;
   transform-origin: top center;
-  transition: none;
   pointer-events: auto;
   overflow: visible;
 }
 
-/* Paper texture */
+/* 纸张纹理 */
 .strip::before {
   content: '';
   position: absolute; inset: 0;
   background:
-    repeating-linear-gradient(90deg,
-      transparent 0px, transparent 4px,
-      rgba(0,0,0,0.015) 4px, rgba(0,0,0,0.015) 5px
-    ),
-    repeating-linear-gradient(0deg,
-      transparent 0px, transparent 8px,
-      rgba(0,0,0,0.01) 8px, rgba(0,0,0,0.01) 9px
-    );
+    repeating-linear-gradient(90deg, transparent 0px, transparent 4px, rgba(0,0,0,0.015) 4px, rgba(0,0,0,0.015) 5px),
+    repeating-linear-gradient(0deg,  transparent 0px, transparent 8px, rgba(0,0,0,0.01)  8px, rgba(0,0,0,0.01)  9px);
 }
 
-/* Torn bottom edge (except last strip) */
+/* 撕裂锯齿边（除最后一张） */
 .strip:not(:last-child)::after {
   content: '';
   position: absolute;
@@ -186,10 +183,10 @@ body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
   z-index: 3;
   background: var(--paper2);
   clip-path: polygon(
-    0% 0%,   1% 100%, 2.5% 20%, 4% 85%, 5.5% 5%,
-    7% 90%,  8.5% 15%, 10% 80%, 11.5% 0%,
+    0% 0%, 1% 100%, 2.5% 20%, 4% 85%, 5.5% 5%,
+    7% 90%, 8.5% 15%, 10% 80%, 11.5% 0%,
     13% 95%, 14.5% 10%, 16% 75%, 17.5% 5%,
-    19% 100%,20.5% 20%, 22% 90%, 23.5% 5%,
+    19% 100%, 20.5% 20%, 22% 90%, 23.5% 5%,
     25% 85%, 26.5% 0%, 28% 95%, 29.5% 15%,
     31% 80%, 32.5% 0%, 34% 90%, 35.5% 10%,
     37% 75%, 38.5% 5%, 40% 100%, 41.5% 20%,
@@ -202,107 +199,149 @@ body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
     79% 85%, 80.5% 0%, 82% 90%, 83.5% 10%,
     85% 75%, 86.5% 5%, 88% 100%, 89.5% 20%,
     91% 85%, 92.5% 0%, 94% 90%, 95.5% 15%,
-    97% 80%, 98.5% 5%, 100% 0%,
-    100% 0%
+    97% 80%, 98.5% 5%, 100% 0%, 100% 0%
   );
 }
 
-/* Strip content */
-.strip-inner {
-  position: relative; z-index: 2;
-  text-align: center; user-select: none;
-}
-.strip-day {
-  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.12em;
-  color: rgba(60,40,100,0.5); text-transform: uppercase;
-}
-.strip-icon { font-size: 1.8rem; display: block; margin: 0.2rem 0; }
-.strip-status { font-size: 0.62rem; color: rgba(60,40,100,0.4); }
+.strip-inner { position: relative; z-index: 2; text-align: center; user-select: none; }
+.strip-day   { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em;
+               color: rgba(60,40,100,0.45); text-transform: uppercase; }
+.strip-icon  { font-size: 1.6rem; display: block; margin: 0.15rem 0; }
+.strip-status{ font-size: 0.58rem; color: rgba(60,40,100,0.35); }
 
-/* Strip that's currently active (next to tear) - subtle glow on bottom */
 .strip.next-up {
-  background: linear-gradient(180deg, var(--paper) 70%, var(--paper2) 100%);
-  border-bottom: 1px dashed rgba(124,58,237,0.25);
+  background: linear-gradient(180deg, var(--paper) 65%, var(--paper2) 100%);
 }
 
-/* ── TEAR ANIMATION ───────────────── */
+/* 撕纸动画 */
 @keyframes tear-off {
-  0%   { transform: translateY(0) rotate(0deg) scaleX(1);   opacity: 1; }
-  8%   { transform: translateY(-4%) rotate(-1deg) scaleX(1.01); opacity: 1; }
-  100% { transform: translateY(140%) rotate(6deg) scaleX(0.95); opacity: 0; }
+  0%   { transform: translateY(0) rotate(0deg) scaleX(1); opacity: 1; }
+  8%   { transform: translateY(-3%) rotate(-0.8deg); opacity: 1; }
+  100% { transform: translateY(135%) rotate(5deg) scaleX(0.96); opacity: 0; }
 }
 .strip.tearing {
-  animation: tear-off 0.65s cubic-bezier(0.55, 0, 0.9, 0.5) forwards;
-  pointer-events: none;
-  z-index: 10;
+  animation: tear-off 0.6s cubic-bezier(0.55, 0, 0.9, 0.5) forwards;
+  pointer-events: none; z-index: 10;
 }
 
-/* ── Progress dots ────────────────── */
+/* ─── Progress dots ──────────────── */
 .dots-row {
-  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  display: flex; align-items: center; justify-content: center; gap: 0.45rem;
 }
 .dot {
   width: 10px; height: 10px; border-radius: 50%;
-  border: 2px solid var(--border);
-  background: var(--surface2);
+  border: 2px solid var(--border); background: var(--surface2);
   transition: all 0.4s;
 }
-.dot.done {
-  background: var(--teal);
-  border-color: var(--teal);
-  box-shadow: 0 0 8px rgba(6,214,160,0.6);
-}
-.dot.active {
-  border-color: var(--purple-l);
-  background: rgba(124,58,237,0.2);
-  animation: dot-pulse 1.5s ease-in-out infinite;
-}
+.dot.done { background: var(--teal); border-color: var(--teal);
+  box-shadow: 0 0 7px rgba(6,214,160,0.55); }
+.dot.active { border-color: var(--purple-l); background: rgba(124,58,237,0.2);
+  animation: dot-pulse 1.5s ease-in-out infinite; }
 @keyframes dot-pulse {
   0%,100% { box-shadow: 0 0 0 0 rgba(124,58,237,0); }
-  50% { box-shadow: 0 0 0 4px rgba(124,58,237,0.2); }
+  50% { box-shadow: 0 0 0 4px rgba(124,58,237,0.18); }
 }
-.dots-label {
-  font-size: 0.68rem; color: var(--muted); letter-spacing: 0.08em;
-  margin-left: 0.5rem;
-}
+.dots-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.07em; margin-left: 0.4rem; }
 
-/* ── Timer bar ────────────────────── */
-.timer-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 1rem 1.25rem;
-  text-align: center;
+/* ─── Timer ──────────────────────── */
+.timer-box { text-align: center; }
+.status-pill {
+  font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 0.28rem 0.85rem; border-radius: 999px; display: inline-block;
+  margin-bottom: 0.7rem; transition: all 0.4s;
 }
-.timer-label {
-  font-size: 0.65rem; color: var(--muted); letter-spacing: 0.12em;
-  text-transform: uppercase; margin-bottom: 0.35rem;
+.status-pill.virgin  { background: rgba(90,90,136,0.12); color: var(--muted); border: 1px solid var(--border); }
+.status-pill.cooling { background: rgba(124,58,237,0.12); color: var(--purple-l); border: 1px solid rgba(124,58,237,0.3); }
+.status-pill.ready   { background: rgba(6,214,160,0.12); color: var(--teal); border: 1px solid rgba(6,214,160,0.35);
+  animation: pill-pulse 2s ease-in-out infinite; }
+@keyframes pill-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(6,214,160,0); }
+  50% { box-shadow: 0 0 0 5px rgba(6,214,160,0.1); }
 }
-.timer-val {
-  font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums;
-  line-height: 1;
+.timer-digits {
+  font-size: 2.6rem; font-weight: 800; letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums; line-height: 1.05; margin-bottom: 0.35rem;
+  transition: color 0.5s;
 }
-.timer-val.active {
-  background: linear-gradient(135deg, var(--purple-l), var(--teal));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
+.timer-digits.virgin  { color: var(--muted); }
+.timer-digits.cooling {
+  background: linear-gradient(135deg, var(--purple-l), #c4b5fd);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
-.timer-val.done { color: var(--gold); }
-.timer-val.virgin { color: var(--muted); }
-.timer-sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; }
-.progress-bar-bg {
-  height: 5px; background: var(--surface2); border-radius: 999px;
-  overflow: hidden; margin-top: 0.85rem;
+.timer-digits.ready {
+  background: linear-gradient(135deg, var(--teal), #6ee7b7);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
-.progress-bar-fill {
+.timer-sub { font-size: 0.76rem; color: var(--muted); margin-bottom: 0.8rem; }
+.cooldown-bar-bg {
+  height: 4px; background: var(--surface2); border-radius: 999px; overflow: hidden; display: none;
+}
+.cooldown-bar-fill {
   height: 100%; border-radius: 999px;
-  background: linear-gradient(90deg, var(--purple), var(--teal));
+  background: linear-gradient(90deg, var(--purple), var(--purple-l));
   transition: width 1s linear;
 }
+.cooldown-bar-fill.done { background: linear-gradient(90deg, var(--teal), #6ee7b7); }
 
-/* ── Buttons ──────────────────────── */
-.btn-row { display: flex; flex-direction: column; gap: 0.65rem; }
+/* ─── DRUM PICKER (天数滚轮) ─────── */
+.goal-row {
+  display: flex; align-items: center; justify-content: center; gap: 0.85rem;
+  padding: 0.65rem 1rem;
+}
+.goal-lbl { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.goal-unit { font-size: 0.85rem; color: var(--text); font-weight: 600; white-space: nowrap; }
 
+.drum-outer {
+  position: relative;
+  width: 68px;
+  height: calc(var(--item-h) * 3); /* 3 items visible */
+  overflow: hidden;
+  border-radius: 10px;
+}
+/* 中心选中高亮框 */
+.drum-hl {
+  position: absolute;
+  top: var(--item-h); height: var(--item-h);
+  left: 4px; right: 4px;
+  background: rgba(124,58,237,0.14);
+  border: 1px solid rgba(124,58,237,0.35);
+  border-radius: 8px;
+  pointer-events: none; z-index: 2;
+}
+/* 上下渐变遮罩（让非选中项淡出） */
+.drum-fade {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    to bottom,
+    var(--surface) 0%,
+    transparent 33%,
+    transparent 67%,
+    var(--surface) 100%
+  );
+  pointer-events: none; z-index: 3;
+}
+/* 可滚动区域 */
+.drum-scroll {
+  height: 100%;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+.drum-scroll::-webkit-scrollbar { display: none; }
+/* 上下留白，让第1和最后1项能滚到中心 */
+.drum-pad { height: var(--item-h); flex-shrink: 0; }
+.drum-item {
+  height: var(--item-h);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.15rem; font-weight: 700;
+  scroll-snap-align: center;
+  color: var(--text);
+}
+
+/* ─── Buttons ────────────────────── */
+.btn-row { display: flex; flex-direction: column; gap: 0.6rem; }
 .btn {
   width: 100%; padding: 1rem 1.25rem;
   border: none; border-radius: var(--r);
@@ -310,177 +349,151 @@ body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
   cursor: pointer; letter-spacing: 0.04em;
   transition: all 0.22s;
   position: relative; overflow: hidden;
+  touch-action: manipulation;
+  min-height: 52px;
 }
 .btn::after {
   content: '';
   position: absolute; inset: 0;
   background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.07) 50%, transparent 60%);
-  transform: translateX(-100%);
-  transition: transform 0.5s;
+  transform: translateX(-100%); transition: transform 0.5s;
 }
-.btn:hover::after { transform: translateX(100%); }
+.btn:active::after { transform: translateX(100%); }
 
-.btn-break {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--red);
-}
-.btn-break:hover { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.4); }
-
-.btn-start {
-  background: linear-gradient(135deg, var(--purple), #5b21b6);
-  color: #fff;
+.btn-break  { background: var(--surface2); border: 1px solid var(--border); color: var(--red); }
+.btn-break:active { background: rgba(239,68,68,0.08); }
+.btn-start  {
+  background: linear-gradient(135deg, var(--purple), #5b21b6); color: #fff;
   box-shadow: 0 4px 20px rgba(124,58,237,0.4);
 }
-.btn-start:hover { box-shadow: 0 6px 28px rgba(124,58,237,0.6); transform: translateY(-1px); }
-
+.btn-start:active  { box-shadow: 0 2px 10px rgba(124,58,237,0.3); transform: scale(0.99); }
 .btn-redeem {
-  background: linear-gradient(135deg, var(--gold), #f59e0b);
-  color: #1a1000; font-weight: 800;
-  box-shadow: 0 4px 22px rgba(251,191,36,0.45);
-  animation: redeem-pulse 1.8s ease-in-out infinite;
-  display: none;
+  background: linear-gradient(135deg, var(--gold), #f59e0b); color: #1a1000;
+  font-weight: 800; box-shadow: 0 4px 22px rgba(251,191,36,0.45);
+  animation: redeem-pulse 1.8s ease-in-out infinite; display: none;
 }
 @keyframes redeem-pulse {
   0%,100% { box-shadow: 0 4px 22px rgba(251,191,36,0.4); transform: translateY(0); }
   50% { box-shadow: 0 6px 32px rgba(251,191,36,0.7); transform: translateY(-2px); }
 }
 
-/* ── Stats ────────────────────────── */
-.stats-row {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem;
-}
+/* ─── Stats ──────────────────────── */
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
 .stat-box {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 14px; padding: 0.8rem 0.5rem; text-align: center;
+  border-radius: 13px; padding: 0.75rem 0.5rem; text-align: center;
 }
-.stat-n { font-size: 1.5rem; font-weight: 800; line-height: 1; margin-bottom: 0.25rem; }
-.stat-n.s { color: var(--gold); }
-.stat-n.t { color: var(--teal); }
-.stat-n.d { color: var(--purple-l); }
-.stat-lbl { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.09em; text-transform: uppercase; }
+.stat-n { font-size: 1.45rem; font-weight: 800; line-height: 1; margin-bottom: 0.22rem; }
+.stat-n.s { color: var(--gold); } .stat-n.t { color: var(--teal); } .stat-n.d { color: var(--purple-l); }
+.stat-lbl { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
 
-/* ── Tip ──────────────────────────── */
+/* ─── Tip ────────────────────────── */
 .tip-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--purple);
-  border-radius: var(--r); padding: 0.9rem 1.1rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 3px solid var(--purple); border-radius: var(--r); padding: 0.85rem 1rem;
 }
-.tip-lbl { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.45rem; }
-.tip-txt { font-size: 0.86rem; color: var(--text); line-height: 1.6; font-style: italic; transition: opacity 0.3s; }
-.tip-btn { background:none; border:none; color:var(--muted); font-size:0.7rem; cursor:pointer; margin-top:0.45rem; transition:color 0.2s; padding:0; }
-.tip-btn:hover { color: var(--purple-l); }
+.tip-lbl { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.4rem; }
+.tip-txt { font-size: 0.84rem; color: var(--text); line-height: 1.6; font-style: italic; transition: opacity 0.3s; }
+.tip-btn { background: none; border: none; color: var(--muted); font-size: 0.68rem; cursor: pointer;
+  margin-top: 0.4rem; padding: 0; touch-action: manipulation; min-height: 32px;
+  display: inline-flex; align-items: center; }
+.tip-btn:active { color: var(--purple-l); }
 
-/* ── Achievements ─────────────────── */
-.ach-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 1rem 1.1rem; }
-.sec-lbl { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.13em; text-transform: uppercase; margin-bottom: 0.75rem; }
-.badges { display: flex; flex-wrap: wrap; gap: 0.45rem; }
-.badge { display:flex; align-items:center; gap:0.35rem; padding:0.35rem 0.75rem; border-radius:999px; font-size:0.73rem; font-weight:600; transition:all 0.3s; }
-.badge.on { background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); color:var(--gold); }
-.badge.off { background:var(--surface2); border:1px solid var(--border); color:var(--muted); opacity:0.5; filter:grayscale(1); }
+/* ─── Achievements ───────────────── */
+.sec-lbl { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.13em; text-transform: uppercase; margin-bottom: 0.7rem; }
+.badges { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.badge {
+  display: flex; align-items: center; gap: 0.3rem;
+  padding: 0.32rem 0.7rem; border-radius: 999px;
+  font-size: 0.71rem; font-weight: 600; transition: all 0.3s;
+}
+.badge.on  { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: var(--gold); }
+.badge.off { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); opacity: 0.45; filter: grayscale(1); }
 .badge.pop { animation: bpop 0.5s cubic-bezier(0.34,1.56,0.64,1); }
-@keyframes bpop { from { transform:scale(0.3); opacity:0; } to { transform:scale(1); opacity:1; } }
+@keyframes bpop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-/* ── History ──────────────────────── */
-.hist-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:1rem 1.1rem; }
-.hist-list { display:flex; flex-direction:column; gap:0.4rem; max-height:180px; overflow-y:auto; }
-.hist-item { display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0.65rem; background:var(--surface2); border-radius:9px; font-size:0.76rem; }
-.hist-item.ok  { border-left:3px solid var(--teal); }
-.hist-item.bad { border-left:3px solid var(--red); }
-.hist-sub { font-size:0.68rem; color:var(--muted); margin-top:0.1rem; }
-.hist-res { font-weight:700; }
-.hist-item.ok  .hist-res { color:var(--teal); }
-.hist-item.bad .hist-res { color:var(--red); }
-.empty-msg { color:var(--muted); font-size:0.78rem; text-align:center; padding:1rem 0; }
+/* ─── History ────────────────────── */
+.hist-list { display: flex; flex-direction: column; gap: 0.4rem;
+  max-height: 180px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.hist-item { display: flex; justify-content: space-between; align-items: center;
+  padding: 0.5rem 0.65rem; background: var(--surface2); border-radius: 9px; font-size: 0.74rem; }
+.hist-item.ok  { border-left: 3px solid var(--teal); }
+.hist-item.bad { border-left: 3px solid var(--red); }
+.hist-sub { font-size: 0.65rem; color: var(--muted); margin-top: 0.1rem; }
+.hist-res { font-weight: 700; }
+.hist-item.ok .hist-res  { color: var(--teal); }
+.hist-item.bad .hist-res { color: var(--red);  }
+.empty-msg { color: var(--muted); font-size: 0.76rem; text-align: center; padding: 0.9rem 0; }
 
-/* ── Reset ────────────────────────── */
-.reset-btn { background:none; border:1px solid var(--border); color:var(--muted); font-size:0.65rem; padding:0.35rem 0.75rem; border-radius:8px; cursor:pointer; transition:all 0.2s; }
-.reset-btn:hover { border-color:var(--red); color:var(--red); }
-
-/* ── Modal ────────────────────────── */
-.overlay { position:fixed; inset:0; background:rgba(0,0,0,0.78); backdrop-filter:blur(12px); z-index:100; display:flex; align-items:center; justify-content:center; padding:1rem; opacity:0; pointer-events:none; transition:opacity 0.25s; }
-.overlay.on { opacity:1; pointer-events:all; }
-.modal { background:var(--surface); border:1px solid var(--border); border-radius:22px; padding:2rem; max-width:320px; width:100%; text-align:center; transform:scale(0.9) translateY(10px); transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1); }
-.overlay.on .modal { transform:scale(1) translateY(0); }
-.m-icon { font-size:3rem; display:block; margin-bottom:0.9rem; }
-.m-title { font-size:1.1rem; font-weight:800; margin-bottom:0.5rem; }
-.m-held { font-size:1.5rem; font-weight:800; color:var(--purple-l); margin:0.6rem 0; }
-.m-body { font-size:0.82rem; color:var(--muted); line-height:1.65; margin-bottom:1.4rem; }
-.m-btns { display:flex; flex-direction:column; gap:0.55rem; }
-.m-persist { padding:0.85rem; border-radius:12px; border:none; background:linear-gradient(135deg,var(--purple),#5b21b6); color:#fff; font-size:0.9rem; font-weight:700; cursor:pointer; transition:opacity 0.2s; }
-.m-persist:hover { opacity:0.88; }
-.m-yield { padding:0.85rem; border-radius:12px; border:1px solid var(--border); background:transparent; color:var(--red); font-size:0.82rem; cursor:pointer; transition:background 0.2s; }
-.m-yield:hover { background:rgba(239,68,68,0.09); }
-
-/* ── Image modal ──────────────────── */
-.img-input {
-  width:100%; padding:0.75rem; border-radius:10px;
-  border:1px solid var(--border); background:var(--surface2);
-  color:var(--text); font-size:0.82rem; outline:none; margin-bottom:0.75rem;
-  transition:border-color 0.2s;
+/* ─── Reset ──────────────────────── */
+.reset-btn {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  font-size: 0.63rem; padding: 0.35rem 0.75rem; border-radius: 8px;
+  cursor: pointer; transition: all 0.2s; touch-action: manipulation; min-height: 34px;
 }
-.img-input:focus { border-color:var(--purple); }
+.reset-btn:active { border-color: var(--red); color: var(--red); }
 
-/* ── Toast ────────────────────────── */
-.toast { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:0.7rem 1.3rem; font-size:0.82rem; z-index:200; transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1); white-space:nowrap; box-shadow:0 8px 32px rgba(0,0,0,0.5); pointer-events:none; }
-.toast.up { transform:translateX(-50%) translateY(0); }
-.toast.ok   { border-color:var(--teal);    color:var(--teal); }
-.toast.bad  { border-color:var(--red);     color:var(--red); }
-.toast.info { border-color:var(--purple);  color:var(--purple-l); }
-.toast.gold { border-color:var(--gold);    color:var(--gold); }
-
-/* ── Scrollbar ────────────────────── */
-::-webkit-scrollbar { width:3px; }
-::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
-
-/* ── iOS / 触控优化 ───────────────── */
-
-/* 防止按钮双击缩放，同时保留原生滚动顺滑度 */
-.btn, .btn-main, .tip-btn, .reset-btn, .set-img-btn,
-.m-persist, .m-yield, .tip-next {
-  touch-action: manipulation;
-  -webkit-user-select: none;
-  user-select: none;
+/* ─── Modal ──────────────────────── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(12px);
+  z-index: 100; display: flex; align-items: center; justify-content: center; padding: 1rem;
+  opacity: 0; pointer-events: none; transition: opacity 0.25s;
 }
-
-/* 主要内容区不可选中 */
-.hdr, .reveal-outer, .dots-row, .timer-box,
-.stats-row, .tip-box, .ach-box, .hist-box {
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-/* Toast 随 Home 条上移 */
-.toast {
-  bottom: max(2rem, calc(env(safe-area-inset-bottom) + 1rem)) !important;
-}
-
-/* 防止 iOS 在 input 聚焦时放大页面（字号需 ≥ 16px） */
-.img-input {
-  font-size: 16px !important;
-}
-
-/* 弹窗在安全区域内 */
+.overlay.on { opacity: 1; pointer-events: all; }
 .modal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+  padding: 1.75rem; max-width: 320px; width: 100%; text-align: center;
+  transform: scale(0.9) translateY(10px);
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
   margin-bottom: env(safe-area-inset-bottom);
 }
+.overlay.on .modal { transform: scale(1) translateY(0); }
+.m-icon  { font-size: 2.8rem; display: block; margin-bottom: 0.8rem; }
+.m-title { font-size: 1.05rem; font-weight: 800; margin-bottom: 0.45rem; }
+.m-held  { font-size: 1.45rem; font-weight: 800; color: var(--purple-l); margin: 0.55rem 0; }
+.m-body  { font-size: 0.8rem; color: var(--muted); line-height: 1.65; margin-bottom: 1.3rem; white-space: pre-line; }
+.m-btns  { display: flex; flex-direction: column; gap: 0.55rem; }
+.m-persist {
+  padding: 0.85rem; border-radius: 11px; border: none;
+  background: linear-gradient(135deg, var(--purple), #5b21b6);
+  color: #fff; font-size: 0.88rem; font-weight: 700; cursor: pointer;
+  touch-action: manipulation; min-height: 50px;
+}
+.m-yield {
+  padding: 0.85rem; border-radius: 11px; border: 1px solid var(--border);
+  background: transparent; color: var(--red); font-size: 0.8rem; cursor: pointer;
+  touch-action: manipulation; min-height: 50px;
+}
+.m-yield:active { background: rgba(239,68,68,0.08); }
 
-/* 增大可点击区域，适合手指操作 */
-.set-img-btn {
-  padding: 0.5rem 0.9rem !important;
-  min-height: 36px;
+/* Image modal input */
+.img-input {
+  width: 100%; padding: 0.75rem; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text); font-size: 16px; /* ≥16px 防 iOS 自动缩放 */
+  outline: none; margin-bottom: 0.7rem;
 }
-.tip-next, .reset-btn {
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-}
+.img-input:focus { border-color: var(--purple); }
 
-/* 让 history-list 在 iOS 上有惯性滚动 */
-.hist-list {
-  -webkit-overflow-scrolling: touch;
+/* ─── Toast ──────────────────────── */
+.toast {
+  position: fixed; left: 50%;
+  bottom: max(2rem, calc(env(safe-area-inset-bottom) + 1rem));
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 0.65rem 1.25rem; font-size: 0.8rem; z-index: 200;
+  transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  white-space: nowrap; box-shadow: 0 8px 32px rgba(0,0,0,0.5); pointer-events: none;
 }
+.toast.up { transform: translateX(-50%) translateY(0); }
+.toast.ok   { border-color: var(--teal);   color: var(--teal); }
+.toast.bad  { border-color: var(--red);    color: var(--red); }
+.toast.info { border-color: var(--purple); color: var(--purple-l); }
+.toast.gold { border-color: var(--gold);   color: var(--gold); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 </style>
 </head>
 <body>
@@ -490,60 +503,36 @@ body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
   <!-- Header -->
   <header class="hdr">
     <h1>⚡ Hold It</h1>
-    <p>4 天撕完 · 全漏出来才能撸</p>
+    <p id="hdrSub">坚持 4 天撕完 · 全漏出来才能撸</p>
   </header>
 
-  <!-- ═══ REVEAL FRAME ═══ -->
+  <!-- ══ REVEAL FRAME ══ -->
   <div class="reveal-outer">
-
-    <!-- Background (reward image) -->
     <div class="reveal-bg" id="revealBg">
-      <!-- Stars decoration -->
       <div class="reveal-bg-stars" id="bgStars"></div>
-      <!-- Default reward message -->
       <div class="reward-msg" id="rewardMsg">
         <span class="emo">🎉</span>
         <h2>解锁成功！</h2>
         <p>你赢得了这次奖励</p>
       </div>
     </div>
-
-    <!-- 4 Paper strips (0=top/last, 3=bottom/first to tear) -->
+    <!-- 4 张纸（0=顶/最后撕，3=底/最先撕） -->
     <div class="strips-wrap" id="stripsWrap">
       <div class="strip" id="strip-0">
-        <div class="strip-inner">
-          <div class="strip-day">第 4 天</div>
-          <span class="strip-icon">📄</span>
-          <div class="strip-status">最后一关</div>
-        </div>
+        <div class="strip-inner"><div class="strip-day">最后一关</div><span class="strip-icon">📄</span><div class="strip-status">顶层</div></div>
       </div>
       <div class="strip" id="strip-1">
-        <div class="strip-inner">
-          <div class="strip-day">第 3 天</div>
-          <span class="strip-icon">📄</span>
-          <div class="strip-status">再撑一天</div>
-        </div>
+        <div class="strip-inner"><div class="strip-day">第 3 天</div><span class="strip-icon">📄</span><div class="strip-status">再撑一天</div></div>
       </div>
       <div class="strip" id="strip-2">
-        <div class="strip-inner">
-          <div class="strip-day">第 2 天</div>
-          <span class="strip-icon">📄</span>
-          <div class="strip-status">越来越近了</div>
-        </div>
+        <div class="strip-inner"><div class="strip-day">第 2 天</div><span class="strip-icon">📄</span><div class="strip-status">越来越近了</div></div>
       </div>
       <div class="strip" id="strip-3">
-        <div class="strip-inner">
-          <div class="strip-day">第 1 天</div>
-          <span class="strip-icon">📄</span>
-          <div class="strip-status">撑过今天</div>
-        </div>
+        <div class="strip-inner"><div class="strip-day">第 1 天</div><span class="strip-icon">📄</span><div class="strip-status">撑过今天</div></div>
       </div>
     </div>
-
-    <!-- Set image button -->
     <button class="set-img-btn" onclick="openImgModal()">🖼 换底图</button>
   </div>
-  <!-- ═══════════════════════ -->
 
   <!-- Progress dots -->
   <div class="dots-row" id="dotsRow">
@@ -555,42 +544,40 @@ body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
   </div>
 
   <!-- Timer -->
-  <div class="timer-box" id="timerBox">
-    <div class="timer-label" id="timerLabel">距离下一张</div>
-    <div class="timer-val virgin" id="timerVal">-- : -- : --</div>
-    <div class="timer-sub" id="timerSub">开始你的第一次训练</div>
-    <div class="progress-bar-bg">
-      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+  <div class="card timer-box">
+    <div class="status-pill virgin" id="statusPill">⬇ 等待开始</div>
+    <div class="timer-digits virgin" id="timerDigits">-- : -- : --</div>
+    <div class="timer-sub" id="timerSub">点击下方按钮，开始训练</div>
+    <div class="cooldown-bar-bg" id="cooldownBg">
+      <div class="cooldown-bar-fill" id="cooldownFill" style="width:0%"></div>
     </div>
+  </div>
+
+  <!-- ══ DRUM PICKER ══ -->
+  <div class="card goal-row">
+    <span class="goal-lbl">目标间隔</span>
+    <div class="drum-outer">
+      <div class="drum-hl"></div>
+      <div class="drum-fade"></div>
+      <div class="drum-scroll" id="drumScroll">
+        <!-- JS 生成 -->
+      </div>
+    </div>
+    <span class="goal-unit">天不撸</span>
   </div>
 
   <!-- Buttons -->
   <div class="btn-row">
-    <button class="btn btn-start" id="btnStart" onclick="handleStart()">
-      🎯 开始训练 · 第一次记录
-    </button>
-    <button class="btn btn-redeem" id="btnRedeem" onclick="handleRedeem()">
-      🎉 已全部揭开！享用并重置
-    </button>
-    <button class="btn btn-break" id="btnBreak" onclick="handleBreak()" style="display:none">
-      💔 记录一次（破戒）
-    </button>
+    <button class="btn btn-start"  id="btnStart"  onclick="handleStart()">🎯 开始训练 · 第一次记录</button>
+    <button class="btn btn-redeem" id="btnRedeem" onclick="handleRedeem()">🎉 已全部揭开！享用并重置</button>
+    <button class="btn btn-break"  id="btnBreak"  onclick="handleBreak()" style="display:none">💔 记录一次（破戒）</button>
   </div>
 
   <!-- Stats -->
   <div class="stats-row">
-    <div class="stat-box">
-      <div class="stat-n s" id="statStreak">0</div>
-      <div class="stat-lbl">🔥 连续达标</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-n t" id="statTotal">0</div>
-      <div class="stat-lbl">✅ 总成功次</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-n d" id="statDays">0</div>
-      <div class="stat-lbl">📅 累计天数</div>
-    </div>
+    <div class="stat-box"><div class="stat-n s" id="statStreak">0</div><div class="stat-lbl">🔥 连续达标</div></div>
+    <div class="stat-box"><div class="stat-n t" id="statTotal">0</div><div class="stat-lbl">✅ 总成功次</div></div>
+    <div class="stat-box"><div class="stat-n d" id="statDays">0</div><div class="stat-lbl">📅 累计天数</div></div>
   </div>
 
   <!-- Tip -->
@@ -601,25 +588,24 @@ body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
   </div>
 
   <!-- Achievements -->
-  <div class="ach-box">
+  <div class="card">
     <div class="sec-lbl">🏆 成就解锁</div>
     <div class="badges" id="badges"></div>
   </div>
 
   <!-- History -->
-  <div class="hist-box">
+  <div class="card">
     <div class="sec-lbl">📜 记录历史</div>
     <div class="hist-list" id="histList"><div class="empty-msg">暂无记录</div></div>
   </div>
 
-  <!-- Reset -->
-  <div style="text-align:center;padding-top:.25rem">
+  <div style="text-align:center;padding-top:.2rem">
     <button class="reset-btn" onclick="askReset()">重置所有数据</button>
   </div>
 
 </div><!-- /wrap -->
 
-<!-- ═══ MODAL ═══ -->
+<!-- Modal -->
 <div class="overlay" id="overlay" onclick="overlayBg(event)">
   <div class="modal">
     <span class="m-icon" id="mIcon">🧊</span>
@@ -635,11 +621,11 @@ body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
   <div class="modal">
     <span class="m-icon">🖼️</span>
     <div class="m-title">设置奖励底图</div>
-    <div class="m-body" style="margin-bottom:1rem">输入图片网址（URL），图片将作为底图藏在白纸后面。可以是任何你喜欢的图。</div>
-    <input class="img-input" id="imgInput" type="url" placeholder="https://example.com/image.jpg" />
+    <div class="m-body" style="margin-bottom:1rem">输入图片网址（URL），它会藏在白纸下面。可以是任何你喜欢的图。</div>
+    <input class="img-input" id="imgInput" type="url" placeholder="https://example.com/image.jpg">
     <div class="m-btns">
       <button class="m-persist" onclick="applyImage()">✅ 确认设置</button>
-      <button class="m-yield" onclick="clearImage()">清除底图</button>
+      <button class="m-yield" style="color:var(--muted)" onclick="clearImage()">清除底图</button>
       <button class="m-yield" style="color:var(--muted)" onclick="closeImgModal()">取消</button>
     </div>
   </div>
@@ -652,9 +638,9 @@ body::after  { width: 400px; height: 400px; bottom: -150px; right: -100px;
 /* =============================================
    CONFIG
    ============================================= */
-const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h per strip
-const STRIPS      = 4;
-const SK          = 'holdit_v1';
+const STRIPS = 4;
+const SK     = 'holdit_v2';
+const ITEM_H = 44; // drum item height (px)
 
 const TIPS = [
   "冲动一般只持续 3-5 分钟，等一等就过去了。",
@@ -673,35 +659,42 @@ const TIPS = [
 ];
 
 const ACHS = [
-  { id:'first',  e:'🌱', n:'破冰之举',  desc:'第一次完成4天解锁', chk: s => s.total >= 1  },
-  { id:'s3',     e:'🔥', n:'三连解锁',  desc:'连续达标 3 次',    chk: s => s.streak >= 3  },
-  { id:'s7',     e:'🏆', n:'意志一周',  desc:'连续达标 7 次',    chk: s => s.streak >= 7  },
-  { id:'s14',    e:'💎', n:'两周传说',  desc:'连续达标 14 次',   chk: s => s.streak >= 14 },
-  { id:'t10',    e:'🎖️', n:'百炼成钢',  desc:'累计成功 10 次',   chk: s => s.total >= 10  },
-  { id:'day30',  e:'📅', n:'月修道者',  desc:'累计训练 30 天',   chk: s => getTotalDays() >= 30 },
+  { id:'first', e:'🌱', n:'破冰之举',  desc:'第一次完成解锁',    chk: s => s.total >= 1   },
+  { id:'s3',    e:'🔥', n:'三连解锁',  desc:'连续达标 3 次',     chk: s => s.streak >= 3  },
+  { id:'s7',    e:'🏆', n:'意志一周',  desc:'连续达标 7 次',     chk: s => s.streak >= 7  },
+  { id:'s14',   e:'💎', n:'两周传说',  desc:'连续达标 14 次',    chk: s => s.streak >= 14 },
+  { id:'t10',   e:'🎖️', n:'百炼成钢',  desc:'累计成功 10 次',    chk: s => s.total >= 10  },
+  { id:'day30', e:'📅', n:'月修道者',  desc:'累计训练 30 天',    chk: s => getTotalDays() >= 30 },
 ];
 
 /* =============================================
    STATE
    ============================================= */
 let S = {
-  startTs:  null,   // timestamp when user started (first record)
-  lastTs:   null,   // timestamp of last occurrence (break or redeem)
-  streak:   0,
-  total:    0,
-  ach:      [],     // unlocked achievement ids
-  history:  [],     // [{ts, ok, elapsed}]
-  tipIdx:   0,
-  imageUrl: '',
+  lastTs:     null,   // 上次记录时间戳
+  targetDays: 4,      // 用户设置的目标天数
+  cycleDays:  4,      // 当前周期锁定的天数（不受中途改设影响）
+  streak:     0,
+  total:      0,
+  ach:        [],
+  history:    [],
+  tipIdx:     0,
+  imageUrl:   '',
+  startTs:    null,
 };
 
-// Non-persisted
-let lastKnownRemoved = -1; // -1 = uninitialized
+/* 非持久化 */
+let lastKnownRemoved = -1;
 
 function load() {
   try {
     const r = localStorage.getItem(SK);
     if (r) Object.assign(S, JSON.parse(r));
+    /* 迁移旧版数据 key */
+    if (!localStorage.getItem(SK)) {
+      const old = localStorage.getItem('holdit_v1');
+      if (old) { Object.assign(S, JSON.parse(old)); save(); }
+    }
   } catch(e) {}
 }
 function save() {
@@ -709,171 +702,148 @@ function save() {
 }
 
 /* =============================================
-   CORE CALCULATIONS
+   CALCULATIONS
    ============================================= */
 const now = () => Date.now();
 
+/* 当前周期的间隔毫秒数（用 cycleDays 而非 targetDays，防止中途改设影响倒计时） */
+function intervalMs() { return (S.cycleDays || S.targetDays || 4) * 24 * 60 * 60 * 1000; }
+
 function getState() {
   if (!S.lastTs) return 'virgin';
-  const removed = getStripsRemoved();
-  return removed >= STRIPS ? 'done' : 'active';
+  return (now() - S.lastTs) < intervalMs() ? 'active' : 'done';
 }
-
 function getStripsRemoved() {
   if (!S.lastTs) return 0;
-  return Math.min(STRIPS, Math.floor((now() - S.lastTs) / INTERVAL_MS));
+  const perStrip = intervalMs() / STRIPS;
+  return Math.min(STRIPS, Math.floor((now() - S.lastTs) / perStrip));
 }
-
-function getStripsLeft() {
-  return STRIPS - getStripsRemoved();
-}
-
 function getMsToNextStrip() {
   if (!S.lastTs) return 0;
+  const perStrip = intervalMs() / STRIPS;
   const removed = getStripsRemoved();
   if (removed >= STRIPS) return 0;
-  const nextAt = S.lastTs + (removed + 1) * INTERVAL_MS;
-  return Math.max(0, nextAt - now());
+  return Math.max(0, S.lastTs + (removed + 1) * perStrip - now());
 }
-
 function getStripProgress() {
   if (!S.lastTs) return 0;
+  const perStrip = intervalMs() / STRIPS;
   const removed = getStripsRemoved();
   if (removed >= STRIPS) return 1;
-  const stripStart = S.lastTs + removed * INTERVAL_MS;
-  return Math.min(1, (now() - stripStart) / INTERVAL_MS);
+  return Math.min(1, (now() - S.lastTs - removed * perStrip) / perStrip);
 }
-
 function getTotalDays() {
   if (!S.startTs) return 0;
   return Math.max(0, Math.floor((now() - S.startTs) / 86400000));
 }
 
+/* Format helpers */
 function fmtTime(ms) {
-  const ts = Math.floor(Math.max(0, ms) / 1000);
-  const h = Math.floor(ts / 3600);
-  const m = Math.floor((ts % 3600) / 60);
-  const s = ts % 60;
-  return [h, m, s].map(x => String(x).padStart(2, '0')).join(':');
+  const ts = Math.floor(Math.max(0,ms)/1000);
+  const h=Math.floor(ts/3600), m=Math.floor((ts%3600)/60), s=ts%60;
+  return [h,m,s].map(x=>String(x).padStart(2,'0')).join(':');
 }
 function fmtDur(ms) {
   if (ms < 60000) return `${Math.floor(ms/1000)} 秒`;
   if (ms < 3600000) return `${Math.floor(ms/60000)} 分钟`;
   if (ms < 86400000) {
-    const h = Math.floor(ms/3600000);
-    const m = Math.floor((ms%3600000)/60000);
-    return h + '小时' + (m ? m+'分' : '');
+    const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000);
+    return h+'小时'+(m?m+'分':'');
   }
-  const d = Math.floor(ms/86400000);
-  const h = Math.floor((ms%86400000)/3600000);
-  return d + '天' + (h ? h+'小时' : '');
+  const d=Math.floor(ms/86400000), h=Math.floor((ms%86400000)/3600000);
+  return d+'天'+(h?h+'小时':'');
 }
 function fmtDate(ts) {
-  const d = new Date(ts), n = new Date();
-  const t = [d.getHours(), d.getMinutes()].map(x=>String(x).padStart(2,'0')).join(':');
-  if (d.toDateString() === n.toDateString()) return '今天 '+t;
-  if (new Date(n-86400000).toDateString() === d.toDateString()) return '昨天 '+t;
+  const d=new Date(ts), n=new Date();
+  const t=[d.getHours(),d.getMinutes()].map(x=>String(x).padStart(2,'0')).join(':');
+  if (d.toDateString()===n.toDateString()) return '今天 '+t;
+  if (new Date(n-86400000).toDateString()===d.toDateString()) return '昨天 '+t;
   return `${d.getMonth()+1}月${d.getDate()}日 ${t}`;
 }
 
 /* =============================================
-   STRIPS DOM
+   STRIP DOM
    ============================================= */
-function getStripEl(idx) { return document.getElementById(`strip-${idx}`); }
+const stripEl = i => document.getElementById(`strip-${i}`);
+/* 第 n 次移除（从1起）对应的 strip 索引（底部先撕） */
+const stripIdxFor = n => STRIPS - n;
 
-// Strip index to remove = 3 - (nthRemoval - 1) = 4 - nthRemoval
-// nthRemoval 1 → strip 3 (bottom)
-// nthRemoval 2 → strip 2
-// nthRemoval 3 → strip 1
-// nthRemoval 4 → strip 0 (top)
-function stripIdxForRemoval(n) { return STRIPS - n; }
-
-function instantHideStrips(count) {
-  for (let n = 1; n <= count; n++) {
-    const el = getStripEl(stripIdxForRemoval(n));
-    if (el) {
-      el.style.display = 'none';
-      el.classList.remove('tearing');
-    }
+function instantHide(count) {
+  for (let n=1;n<=count;n++) {
+    const el=stripEl(stripIdxFor(n));
+    if (el) { el.style.display='none'; el.classList.remove('tearing','next-up'); }
   }
 }
-
-function animateTear(stripIdx, cb) {
-  const el = getStripEl(stripIdx);
-  if (!el) { if (cb) cb(); return; }
+function animateTear(idx, cb) {
+  const el=stripEl(idx);
+  if (!el) { cb&&cb(); return; }
   el.classList.add('tearing');
-  setTimeout(() => {
-    el.style.display = 'none';
-    el.classList.remove('tearing');
-    if (cb) cb();
-  }, 680);
+  setTimeout(()=>{ el.style.display='none'; el.classList.remove('tearing'); cb&&cb(); }, 650);
 }
-
 function resetStrips() {
-  for (let i = 0; i < STRIPS; i++) {
-    const el = getStripEl(i);
-    if (el) {
-      el.style.display = '';
-      el.classList.remove('tearing', 'next-up');
-    }
+  for (let i=0;i<STRIPS;i++) {
+    const el=stripEl(i);
+    if (el) { el.style.display=''; el.classList.remove('tearing','next-up'); }
+  }
+  /* 更新标签文字 */
+  updateStripLabels();
+}
+function updateStripLabels() {
+  /* strip 3=底=第1天，strip 2=第2天，strip 1=第3天，strip 0=最后一关 */
+  const days = S.targetDays;
+  const labels = [
+    ['最后一关', '顶层'],
+    [`第 ${Math.ceil(days*3/4)} 天`, '再撑一天'],
+    [`第 ${Math.ceil(days*2/4)} 天`, '越来越近了'],
+    ['第 1 天', '撑过今天'],
+  ];
+  for (let i=0;i<STRIPS;i++) {
+    const el=stripEl(i);
+    if (!el) continue;
+    el.querySelector('.strip-day').textContent   = labels[i][0];
+    el.querySelector('.strip-status').textContent = labels[i][1];
   }
 }
-
-function syncStripsInstant() {
-  const removed = getStripsRemoved();
+function syncStrips() {
+  const removed=getStripsRemoved();
   resetStrips();
-  instantHideStrips(removed);
-  // Mark the next strip
+  instantHide(removed);
   if (removed < STRIPS) {
-    const nextEl = getStripEl(stripIdxForRemoval(removed + 1));
+    const nextEl=stripEl(stripIdxFor(removed+1));
     if (nextEl) nextEl.classList.add('next-up');
   }
   lastKnownRemoved = removed;
 }
 
 /* =============================================
-   RECORD EVENT
+   CORE LOGIC
    ============================================= */
-function record(broke) {
-  const ts = now();
-  const el = S.lastTs ? ts - S.lastTs : 0;
-  const wasSuccess = !broke;
+function doRecord(broke) {
+  const ts=now(), el=S.lastTs?ts-S.lastTs:0;
+  if (!S.startTs) S.startTs=ts;
 
-  if (!S.startTs) S.startTs = ts;
-
-  if (broke) {
-    // Breaking during active period
-    if (S.lastTs) S.history.unshift({ ts, ok: false, elapsed: el });
-    S.streak = 0;
-    S.lastTs = ts;
-  } else {
-    // Successful completion (redeem) or first start
-    if (S.lastTs) {
-      S.streak++;
-      S.total++;
-      S.history.unshift({ ts, ok: true, elapsed: el });
-    }
-    S.lastTs = ts;
+  if (!S.lastTs) {
+    /* 第一次 */
+    S.lastTs=ts; S.cycleDays=S.targetDays; save(); checkAch(); renderAll();
+    toast(`🎯 开始！目标 ${S.targetDays} 天，撑住！`,'info'); return;
   }
-
-  if (S.history.length > 30) S.history.pop();
+  if (broke) {
+    S.streak=0;
+    S.history.unshift({ts, ok:false, elapsed:el});
+  } else {
+    S.streak++; S.total++;
+    S.history.unshift({ts, ok:true, elapsed:el});
+  }
+  if (S.history.length>30) S.history.pop();
+  /* 新周期锁定当前 targetDays */
+  S.lastTs=ts; S.cycleDays=S.targetDays;
   save();
-
-  const newA = checkAch();
-  return newA;
+  const newA=checkAch(); return newA;
 }
 
-/* =============================================
-   ACHIEVEMENTS
-   ============================================= */
 function checkAch() {
-  const fresh = [];
-  ACHS.forEach(a => {
-    if (!S.ach.includes(a.id) && a.chk(S)) {
-      S.ach.push(a.id);
-      fresh.push(a);
-    }
-  });
+  const fresh=[];
+  ACHS.forEach(a=>{ if (!S.ach.includes(a.id)&&a.chk(S)){ S.ach.push(a.id); fresh.push(a); } });
   if (fresh.length) save();
   return fresh;
 }
@@ -882,330 +852,274 @@ function checkAch() {
    BUTTON HANDLERS
    ============================================= */
 function handleStart() {
-  // First ever record
-  record(false);
-  syncStripsInstant();
-  renderAll();
-  toast('🎯 开始计时！坚持 4 天揭开底图！', 'info');
+  doRecord(false); syncStrips(); renderAll();
 }
-
 function handleBreak() {
-  if (getState() === 'virgin') return;
-  const elapsed = S.lastTs ? now() - S.lastTs : 0;
-  const removed = getStripsRemoved();
-  // Show warning modal
-  document.getElementById('mIcon').textContent = '💔';
-  document.getElementById('mTitle').textContent = '确认破戒？';
-  document.getElementById('mHeld').textContent = `已坚持 ${fmtDur(elapsed)}`;
-  document.getElementById('mBody').textContent = `已撕掉 ${removed} 张，还剩 ${STRIPS - removed} 张。\n破戒会重置所有白纸，从头开始。`;
-  document.getElementById('mBtns').innerHTML = `
+  if (getState()==='virgin') return;
+  const removed=getStripsRemoved();
+  document.getElementById('mIcon').textContent='💔';
+  document.getElementById('mTitle').textContent='确认破戒？';
+  document.getElementById('mHeld').textContent=`已撕 ${removed} 张，坚持了 ${fmtDur(S.lastTs?now()-S.lastTs:0)}`;
+  document.getElementById('mBody').textContent=`还剩 ${STRIPS-removed} 张。破戒会重置所有白纸，从头开始。`;
+  document.getElementById('mBtns').innerHTML=`
     <button class="m-persist" onclick="closeModal()">💪 算了，我还能忍</button>
-    <button class="m-yield" onclick="confirmBreak()">确认破戒，重置</button>
-  `;
+    <button class="m-yield" onclick="confirmBreak()">确认破戒，重置</button>`;
   openModal();
 }
-
 function confirmBreak() {
-  closeModal();
-  record(true);
-  resetStrips();
-  syncStripsInstant();
-  renderAll();
-  toast('💔 破戒…白纸回来了，下次再赢', 'bad');
+  closeModal(); doRecord(true); resetStrips(); syncStrips(); renderAll();
+  toast('💔 破戒…白纸回来了，下次再赢','bad');
 }
-
 function handleRedeem() {
-  document.getElementById('mIcon').textContent = '🎉';
-  document.getElementById('mTitle').textContent = '你做到了！';
-  document.getElementById('mHeld').textContent = `坚持了 4 天`;
-  document.getElementById('mBody').textContent = '底图已完全揭开，享用这次奖励吧！\n享用后将重置，开启新一轮挑战。';
-  document.getElementById('mBtns').innerHTML = `
+  document.getElementById('mIcon').textContent='🎉';
+  document.getElementById('mTitle').textContent='你做到了！';
+  document.getElementById('mHeld').textContent=`坚持了 ${S.cycleDays} 天`;
+  document.getElementById('mBody').textContent='底图已完全揭开，享用这次奖励吧！\n享用后将重置，开启新一轮挑战。';
+  document.getElementById('mBtns').innerHTML=`
     <button class="m-persist" onclick="confirmRedeem()">🎊 享用！开始新一轮</button>
-    <button class="m-yield" onclick="closeModal()">再等等</button>
-  `;
+    <button class="m-yield" onclick="closeModal()">再等等</button>`;
   openModal();
 }
-
 function confirmRedeem() {
   closeModal();
-  const newA = record(false);
-  resetStrips();
-  syncStripsInstant();
-  renderAll();
-  if (newA.length) {
-    toast(`🏆 新成就解锁：${newA[0].n}！`, 'gold');
-  } else {
-    toast(`✅ 完成！连续达标 ${S.streak} 次！`, 'ok');
-  }
+  const newA=doRecord(false);
+  resetStrips(); syncStrips(); renderAll();
+  if (newA&&newA.length) toast(`🏆 新成就：${newA[0].n}！`,'gold');
+  else toast(`✅ 完成！连续达标 ${S.streak} 次！`,'ok');
 }
 
 /* =============================================
-   TICK (every second)
+   TICK
    ============================================= */
 function tick() {
-  const st = getState();
-  if (st === 'virgin') return;
-
-  const currentRemoved = getStripsRemoved();
-
-  // Detect new strip removal
-  if (currentRemoved > lastKnownRemoved && lastKnownRemoved >= 0) {
-    const toTear = currentRemoved - lastKnownRemoved;
-    let delay = 0;
-    for (let i = 1; i <= toTear; i++) {
-      const targetN = lastKnownRemoved + i;     // nth removal
-      const stripIdx = stripIdxForRemoval(targetN);
-      setTimeout(() => {
-        animateTear(stripIdx, () => {
-          // Mark next-up
-          if (targetN < STRIPS) {
-            const nextEl = getStripEl(stripIdxForRemoval(targetN + 1));
-            if (nextEl) { nextEl.classList.remove('next-up'); nextEl.classList.add('next-up'); }
-          }
+  const st=getState();
+  if (st==='virgin') return;
+  const cur=getStripsRemoved();
+  if (cur > lastKnownRemoved && lastKnownRemoved >= 0) {
+    let delay=0;
+    for (let i=lastKnownRemoved+1;i<=cur;i++) {
+      const idx=stripIdxFor(i);
+      setTimeout(()=>{
+        animateTear(idx, ()=>{
+          if (i<STRIPS) { const n=stripEl(stripIdxFor(i+1)); if (n) n.classList.add('next-up'); }
         });
-        toast(`🎊 第 ${targetN} 张撕掉了！还剩 ${STRIPS - targetN} 张`, targetN < STRIPS ? 'ok' : 'gold');
+        toast(`🎊 第 ${i} 张撕掉了！还剩 ${STRIPS-i} 张`, i<STRIPS?'ok':'gold');
       }, delay);
-      delay += 800;
+      delay+=800;
     }
-    lastKnownRemoved = currentRemoved;
-    setTimeout(renderAll, delay + 100);
+    lastKnownRemoved=cur;
+    setTimeout(renderAll, delay+100);
     return;
   }
-
-  // Regular timer update
-  renderTimer(st, currentRemoved);
-  renderDots(currentRemoved);
+  renderTimer(st, cur);
+  renderDots(cur);
 }
 
 /* =============================================
    RENDER
    ============================================= */
 function renderAll() {
-  const st = getState();
-  const removed = getStripsRemoved();
-
-  renderTimer(st, removed);
-  renderDots(removed);
-  renderButtons(st);
+  const st=getState(), rm=getStripsRemoved();
+  renderTimer(st, rm);
+  renderDots(rm);
+  renderBtns(st);
   renderStats();
   renderAch();
   renderHistory();
   renderTip();
   renderImage();
+  /* header 副标题 */
+  document.getElementById('hdrSub').textContent=
+    `坚持 ${S.targetDays} 天撕完 · 全漏出来才能撸`;
 }
 
 function renderTimer(st, removed) {
-  const lbl  = document.getElementById('timerLabel');
-  const val  = document.getElementById('timerVal');
-  const sub  = document.getElementById('timerSub');
-  const fill = document.getElementById('progressFill');
+  const pill=document.getElementById('statusPill');
+  const dig =document.getElementById('timerDigits');
+  const sub =document.getElementById('timerSub');
+  const bg  =document.getElementById('cooldownBg');
+  const fill=document.getElementById('cooldownFill');
 
-  if (st === 'virgin') {
-    lbl.textContent = '等待开始';
-    val.className   = 'timer-val virgin';
-    val.textContent = '00:00:00';
-    sub.textContent = '点击按钮开始你的训练';
-    fill.style.width = '0%';
-    return;
+  if (st==='virgin') {
+    pill.className='status-pill virgin'; pill.textContent='⬇ 等待开始';
+    dig.className='timer-digits virgin';  dig.textContent='00:00:00';
+    sub.textContent=`设好目标天数，点击按钮开始`;
+    bg.style.display='none'; return;
   }
-
-  if (st === 'done') {
-    lbl.textContent = '🎉 全部揭开！';
-    val.className   = 'timer-val done';
-    val.textContent = '解锁成功';
-    sub.textContent = '点击下方按钮享用奖励';
-    fill.style.width = '100%';
-    return;
-  }
-
-  // active
-  lbl.textContent = `距离撕掉第 ${removed + 1} 张`;
-  val.className   = 'timer-val active';
-  val.textContent = fmtTime(getMsToNextStrip());
-  sub.textContent = `已撕 ${removed} 张 · 还剩 ${STRIPS - removed} 张`;
-  fill.style.width = (getStripProgress() * 100) + '%';
-}
-
-function renderDots(removed) {
-  for (let i = 0; i < STRIPS; i++) {
-    const dot = document.getElementById(`dot-${i}`);
-    if (!dot) continue;
-    dot.className = 'dot';
-    if (i < removed) dot.classList.add('done');
-    else if (i === removed && getState() !== 'virgin') dot.classList.add('active');
-  }
-  document.getElementById('dotsLabel').textContent = `${removed} / ${STRIPS} 天`;
-}
-
-function renderButtons(st) {
-  const btnStart  = document.getElementById('btnStart');
-  const btnRedeem = document.getElementById('btnRedeem');
-  const btnBreak  = document.getElementById('btnBreak');
-
-  if (st === 'virgin') {
-    btnStart.style.display  = '';
-    btnRedeem.style.display = 'none';
-    btnBreak.style.display  = 'none';
-  } else if (st === 'done') {
-    btnStart.style.display  = 'none';
-    btnRedeem.style.display = '';
-    btnBreak.style.display  = 'none';
+  bg.style.display='block';
+  if (st==='done') {
+    pill.className='status-pill ready';   pill.textContent='✅ 达标解锁！';
+    dig.className='timer-digits ready';   dig.textContent='解锁成功';
+    sub.textContent='点击下方按钮享用奖励';
+    fill.className='cooldown-bar-fill done'; fill.style.width='100%';
   } else {
-    btnStart.style.display  = 'none';
-    btnRedeem.style.display = 'none';
-    btnBreak.style.display  = '';
+    pill.className='status-pill cooling'; pill.textContent='🧊 冷却中';
+    dig.className='timer-digits cooling'; dig.textContent=fmtTime(getMsToNextStrip());
+    sub.textContent=`已撕 ${removed} 张 · 还剩 ${STRIPS-removed} 张 · 上次: ${fmtDate(S.lastTs)}`;
+    fill.className='cooldown-bar-fill'; fill.style.width=(getStripProgress()*100)+'%';
   }
 }
-
+function renderDots(removed) {
+  for (let i=0;i<STRIPS;i++) {
+    const d=document.getElementById(`dot-${i}`);
+    if (!d) continue;
+    d.className='dot';
+    if (i<removed) d.classList.add('done');
+    else if (i===removed&&getState()!=='virgin') d.classList.add('active');
+  }
+  document.getElementById('dotsLabel').textContent=`${removed} / ${STRIPS} 天`;
+}
+function renderBtns(st) {
+  document.getElementById('btnStart').style.display  = st==='virgin'?'':'none';
+  document.getElementById('btnRedeem').style.display = st==='done'?'':'none';
+  document.getElementById('btnBreak').style.display  = (st==='active')?'':'none';
+}
 function renderStats() {
   document.getElementById('statStreak').textContent = S.streak;
   document.getElementById('statTotal').textContent  = S.total;
   document.getElementById('statDays').textContent   = getTotalDays();
 }
-
 function renderAch() {
-  document.getElementById('badges').innerHTML = ACHS.map(a => {
-    const on = S.ach.includes(a.id);
+  document.getElementById('badges').innerHTML = ACHS.map(a=>{
+    const on=S.ach.includes(a.id);
     return `<div class="badge ${on?'on':'off'}" title="${a.desc}">${a.e} ${a.n}</div>`;
   }).join('');
 }
-
 function renderHistory() {
-  const el = document.getElementById('histList');
-  if (!S.history.length) { el.innerHTML = '<div class="empty-msg">暂无记录</div>'; return; }
-  el.innerHTML = S.history.slice(0, 12).map(h => `
+  const el=document.getElementById('histList');
+  if (!S.history.length) { el.innerHTML='<div class="empty-msg">暂无记录</div>'; return; }
+  el.innerHTML=S.history.slice(0,12).map(h=>`
     <div class="hist-item ${h.ok?'ok':'bad'}">
-      <div>
-        <div>${fmtDate(h.ts)}</div>
-        ${h.elapsed ? `<div class="hist-sub">间隔 ${fmtDur(h.elapsed)}</div>` : ''}
-      </div>
-      <div class="hist-res">${h.ok ? '✅ 达标' : '💔 破戒'}</div>
-    </div>
-  `).join('');
+      <div><div>${fmtDate(h.ts)}</div>${h.elapsed?`<div class="hist-sub">间隔 ${fmtDur(h.elapsed)}</div>`:''}</div>
+      <div class="hist-res">${h.ok?'✅ 达标':'💔 破戒'}</div>
+    </div>`).join('');
 }
-
 function renderTip() {
-  document.getElementById('tipTxt').textContent = TIPS[S.tipIdx % TIPS.length];
+  document.getElementById('tipTxt').textContent = TIPS[S.tipIdx%TIPS.length];
 }
-
 function renderImage() {
-  const bg = document.getElementById('revealBg');
+  const bg=document.getElementById('revealBg');
+  const msg=document.getElementById('rewardMsg');
   if (S.imageUrl) {
-    bg.classList.add('has-image');
-    bg.querySelector('::before'); // just to trigger
-    // Set via inline style since ::before bg is tricky
-    bg.style.backgroundImage = `url('${CSS.escape ? S.imageUrl : S.imageUrl}')`;
-    bg.style.backgroundSize  = 'cover';
-    bg.style.backgroundPosition = 'center';
-    document.getElementById('rewardMsg').style.display = 'none';
+    bg.style.backgroundImage=`url('${S.imageUrl}')`;
+    bg.style.backgroundSize='cover';
+    bg.style.backgroundPosition='center';
+    msg.style.display='none';
   } else {
-    bg.classList.remove('has-image');
-    bg.style.backgroundImage = '';
-    document.getElementById('rewardMsg').style.display = '';
+    bg.style.backgroundImage='';
+    msg.style.display='';
   }
 }
 
 /* =============================================
-   TIP
+   DRUM PICKER
+   ============================================= */
+function buildDrum() {
+  const drum=document.getElementById('drumScroll');
+  let html='<div class="drum-pad"></div>';
+  for (let i=1;i<=100;i++) html+=`<div class="drum-item">${i}</div>`;
+  html+='<div class="drum-pad"></div>';
+  drum.innerHTML=html;
+}
+
+function initDrum() {
+  buildDrum();
+  const drum=document.getElementById('drumScroll');
+  /* 滚到保存的值 */
+  drum.scrollTop=(S.targetDays-1)*ITEM_H;
+
+  let settled, last=S.targetDays;
+  function onSettle() {
+    const val=Math.max(1,Math.min(100,Math.round(drum.scrollTop/ITEM_H)+1));
+    if (val===last) return;
+    last=val; S.targetDays=val; save();
+    /* 更新标签但不重置倒计时（cycleDays 不变，当前周期继续） */
+    document.getElementById('hdrSub').textContent=`坚持 ${val} 天撕完 · 全漏出来才能撸`;
+    updateStripLabels();
+  }
+  drum.addEventListener('scroll', ()=>{ clearTimeout(settled); settled=setTimeout(onSettle,180); }, {passive:true});
+  /* scrollend 原生事件（现代浏览器支持） */
+  drum.addEventListener('scrollend', onSettle, {passive:true});
+}
+
+/* =============================================
+   TIPS
    ============================================= */
 function nextTip() {
-  S.tipIdx = (S.tipIdx + 1) % TIPS.length;
-  const el = document.getElementById('tipTxt');
-  el.style.opacity = '0';
-  setTimeout(() => { el.textContent = TIPS[S.tipIdx]; el.style.opacity = '1'; }, 220);
+  S.tipIdx=(S.tipIdx+1)%TIPS.length;
+  const el=document.getElementById('tipTxt');
+  el.style.opacity='0';
+  setTimeout(()=>{ el.textContent=TIPS[S.tipIdx]; el.style.opacity='1'; }, 220);
   save();
 }
 
 /* =============================================
    IMAGE MODAL
    ============================================= */
-function openImgModal() {
-  document.getElementById('imgInput').value = S.imageUrl || '';
-  document.getElementById('imgOverlay').classList.add('on');
-}
+function openImgModal()  { document.getElementById('imgInput').value=S.imageUrl||''; document.getElementById('imgOverlay').classList.add('on'); }
 function closeImgModal() { document.getElementById('imgOverlay').classList.remove('on'); }
-function imgOverlayBg(e) { if (e.target.id === 'imgOverlay') closeImgModal(); }
-
+function imgOverlayBg(e){ if (e.target.id==='imgOverlay') closeImgModal(); }
 function applyImage() {
-  const url = document.getElementById('imgInput').value.trim();
-  S.imageUrl = url;
-  save();
-  renderImage();
-  closeImgModal();
-  toast(url ? '🖼 底图已设置！' : '🖼 底图已清除', 'info');
+  S.imageUrl=document.getElementById('imgInput').value.trim(); save(); renderImage(); closeImgModal();
+  toast(S.imageUrl?'🖼 底图已设置！':'🖼 底图已清除','info');
 }
-function clearImage() {
-  S.imageUrl = '';
-  save();
-  renderImage();
-  closeImgModal();
-  toast('🖼 底图已清除', 'info');
-}
+function clearImage() { S.imageUrl=''; save(); renderImage(); closeImgModal(); toast('🖼 底图已清除','info'); }
 
 /* =============================================
    MODAL
    ============================================= */
 function openModal()  { document.getElementById('overlay').classList.add('on'); }
 function closeModal() { document.getElementById('overlay').classList.remove('on'); }
-function overlayBg(e) { if (e.target.id === 'overlay') closeModal(); }
+function overlayBg(e){ if (e.target.id==='overlay') closeModal(); }
 
 /* =============================================
    RESET
    ============================================= */
 function askReset() {
-  document.getElementById('mIcon').textContent  = '⚠️';
-  document.getElementById('mTitle').textContent = '确认重置？';
-  document.getElementById('mHeld').textContent  = '';
-  document.getElementById('mBody').textContent  = '所有训练数据（连续记录、成就、历史）将被清除，底图设置保留。';
-  document.getElementById('mBtns').innerHTML = `
+  document.getElementById('mIcon').textContent='⚠️';
+  document.getElementById('mTitle').textContent='确认重置？';
+  document.getElementById('mHeld').textContent='';
+  document.getElementById('mBody').textContent='所有训练数据将被清除（底图和目标天数保留）。';
+  document.getElementById('mBtns').innerHTML=`
     <button class="m-yield" onclick="doReset()">确认重置</button>
-    <button class="m-persist" onclick="closeModal()">取消</button>
-  `;
+    <button class="m-persist" onclick="closeModal()">取消</button>`;
   openModal();
 }
 function doReset() {
-  const img = S.imageUrl;
+  const img=S.imageUrl, tgt=S.targetDays;
   localStorage.removeItem(SK);
-  S = { startTs:null, lastTs:null, streak:0, total:0, ach:[], history:[], tipIdx:0, imageUrl:img };
-  closeModal();
-  resetStrips();
-  lastKnownRemoved = -1;
-  syncStripsInstant();
-  renderAll();
-  toast('🔄 已重置，重新出发！', 'info');
+  S={lastTs:null,targetDays:tgt,cycleDays:tgt,streak:0,total:0,ach:[],history:[],tipIdx:0,imageUrl:img,startTs:null};
+  closeModal(); resetStrips(); lastKnownRemoved=-1; syncStrips(); renderAll();
+  /* 重置鼓轮到保存值 */
+  const drum=document.getElementById('drumScroll');
+  if (drum) drum.scrollTop=(S.targetDays-1)*ITEM_H;
+  toast('🔄 已重置，重新出发！','info');
 }
 
 /* =============================================
    TOAST
    ============================================= */
 let toastTid;
-function toast(msg, type='info') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = `toast ${type} up`;
-  clearTimeout(toastTid);
-  toastTid = setTimeout(() => el.classList.remove('up'), 3500);
+function toast(msg,type='info') {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`toast ${type} up`;
+  clearTimeout(toastTid); toastTid=setTimeout(()=>el.classList.remove('up'),3500);
 }
 
 /* =============================================
    STARS
    ============================================= */
 function makeStars() {
-  const el = document.getElementById('bgStars');
-  let html = '';
-  for (let i = 0; i < 40; i++) {
-    const x = Math.random()*100, y = Math.random()*100;
-    const s = 0.5 + Math.random()*1.5;
-    const op = 0.15 + Math.random()*0.5;
-    const dur = 2 + Math.random()*4;
-    const delay = -Math.random()*4;
-    html += `<div style="position:absolute;left:${x}%;top:${y}%;width:${s}px;height:${s}px;border-radius:50%;background:rgba(200,200,255,${op});animation:tw ${dur.toFixed(1)}s ease-in-out ${delay.toFixed(1)}s infinite"></div>`;
+  const el=document.getElementById('bgStars');
+  let h=''; for (let i=0;i<35;i++) {
+    const x=Math.random()*100,y=Math.random()*100,s=0.5+Math.random()*1.5;
+    const op=0.15+Math.random()*0.45,dur=(2+Math.random()*4).toFixed(1),dl=(-Math.random()*4).toFixed(1);
+    h+=`<div style="position:absolute;left:${x}%;top:${y}%;width:${s}px;height:${s}px;border-radius:50%;background:rgba(200,200,255,${op});animation:tw ${dur}s ease-in-out ${dl}s infinite"></div>`;
   }
-  el.innerHTML = html;
-  if (!document.getElementById('starStyle')) {
-    const st = document.createElement('style');
-    st.id = 'starStyle';
-    st.textContent = '@keyframes tw{0%,100%{opacity:0.2}50%{opacity:0.9}}';
+  el.innerHTML=h;
+  if (!document.getElementById('stSt')) {
+    const st=document.createElement('style'); st.id='stSt';
+    st.textContent='@keyframes tw{0%,100%{opacity:.2}50%{opacity:.9}}';
     document.head.appendChild(st);
   }
 }
@@ -1216,24 +1130,22 @@ function makeStars() {
 function init() {
   load();
   makeStars();
+  initDrum();
 
-  // Restore strips to correct state (no animation on load)
-  if (getState() !== 'virgin') {
-    syncStripsInstant();
-  }
-
+  if (getState()!=='virgin') syncStrips();
   renderAll();
+
   setInterval(tick, 1000);
   setInterval(nextTip, 40000);
 }
 
 init();
 
-/* ── Service Worker 注册（PWA 离线支持）── */
+/* ── Service Worker ────────────────────────── */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+  window.addEventListener('load', ()=>{
     navigator.serviceWorker.register('./sw.js')
-      .catch(err => console.warn('SW 注册失败:', err));
+      .catch(e=>console.warn('SW:', e));
   });
 }
 </script>

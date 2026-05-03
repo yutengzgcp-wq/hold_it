@@ -1,7 +1,7 @@
 /* Hold It — Service Worker
    缓存所有静态资源，支持完全离线运行 */
 
-const CACHE = 'holdit-v1';
+const CACHE = 'holdit-v3';
 const ASSETS = [
   './',
   './index.html',
