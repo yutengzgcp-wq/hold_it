@@ -11,7 +11,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hold It">
 <meta name="theme-color" content="#08080f">
-<link rel="manifest" href="manifest.json">
 
 <!-- 内联 SVG 图标（不依赖外部文件，iOS 可靠读取） -->
 <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%2316063a'/><path d='M298 90 L162 272 H244 L210 438 L354 238 H268 Z' fill='%23a78bfa'/><rect x='100' y='340' width='312' height='32' rx='5' fill='%23ffffff' opacity='0.12'/><rect x='100' y='298' width='312' height='32' rx='5' fill='%23ffffff' opacity='0.08'/></svg>">
@@ -1141,13 +1140,6 @@ function init() {
 
 init();
 
-/* ── Service Worker ────────────────────────── */
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./sw.js')
-      .catch(e=>console.warn('SW:', e));
-  });
-}
 </script>
 </body>
 </html>
